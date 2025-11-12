@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Snake Game</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>🐍 Snake Game</h1>
+        <canvas id="gameCanvas" width="400" height="400"></canvas>
+
+        <div class="controls">
+            <button id="startBtn">Start Game</button>
+            <button id="restartBtn" style="display:none;">Restart</button>
+        </div>
+
+        <p id="score">Score: 0</p>
+
+        <!-- 🎵 Music Control -->
+        <div class="music-controls">
+            <label>
+                <input type="checkbox" id="musicToggle" checked> 🔊 Background Music
+            </label>
+        </div>
+
+        <!-- 🔈 Sound Files -->
+        <audio id="bgMusic" src="{{ url_for('static', filename='sounds/background.mp3') }}" loop></audio>
+        <audio id="eatSound" src="{{ url_for('static', filename='sounds/eat.mp3') }}"></audio>
+        <audio id="gameOverSound" src="{{ url_for('static', filename='sounds/gameover.mp3') }}"></audio>
+    </div>
+
+    <script>
+        const canvas = document.getElementById("gameCanvas");
+        const ctx = canvas.getContext("2d");
+        const startBtn = document.getElementById("startBtn");
+        const restartBtn = document.getElementById("restartBtn");
+        const scoreEl = document.getElementById("score");
+        const musicToggle = document.getElementById("musicToggle");
+        const bgMusic = document.getElementById("bgMusic");
+        const eatSound = document.getElementById("eatSound");
+        const gameOverSound = document.getElementById("gameOverSound");
+
+        let snake, food, dx, dy, score, speed, foodsEaten, gameInterval;
+
+        function initGame() {
+            snake = [{x: 200, y: 200}];
+            dx = 20;
+            dy = 0;
+            food = randomFood();
+            score = 0;
+            foodsEaten = 0;
+            speed = 150; // start slow
+            scoreEl.textContent = "Score: " + score;
+            playMusic();
+        }
+
+        function randomFood() {
+            return {
+                x: Math.floor(Math.random() * 20) * 20,
+                y: Math.floor(Math.random() * 20) * 20
+            };
+        }
+
+        function draw() {
+            ctx.fillStyle = "#111";
+            ctx.fillRect(0, 0, 400, 400);
+
+            ctx.fillStyle = "#0f0";
+            snake.forEach(s => ctx.fillRect(s.x, s.y, 18, 18));
+
+            ctx.fillStyle = "#f00";
+            ctx.fillRect(food.x, food.y, 18, 18);
+        }
+
+        function move() {
+            const head = {x: snake[0].x + dx, y: snake[0].y + dy};
+
+            // Collision detection
+            if (
+                head.x < 0 || head.x >= 400 ||
+                head.y < 0 || head.y >= 400 ||
+                snake.some(s => s.x === head.x && s.y === head.y)
+            ) {
+                clearInterval(gameInterval);
+                playSound(gameOverSound);
+                restartBtn.style.display = "inline-block";
+                startBtn.style.display = "none";
+                bgMusic.pause();
+                return;
+            }
+
+            snake.unshift(head);
+
+            // Eating food
+            if (head.x === food.x && head.y === food.y) {
+                score += 10;
+                foodsEaten++;
+                scoreEl.textContent = "Score: " + score;
+                playSound(eatSound);
+                food = randomFood();
+
+                // Speed up every 5 foods
+                if (foodsEaten % 5 === 0) {
+                    speed = Math.max(50, speed - 10); // cap at 50ms (fast)
+                    restartInterval();
+                }
+            } else {
+                snake.pop();
+            }
+        }
+
+        function gameLoop() {
+            move();
+            draw();
+        }
+
+        function restartInterval() {
+            clearInterval(gameInterval);
+            gameInterval = setInterval(gameLoop, speed);
+        }
+
+        // 🎵 Audio Controls
+        function playSound(sound) {
+            sound.currentTime = 0;
+            sound.play();
+        }
+
+        function playMusic() {
+            if (musicToggle.checked) {
+                bgMusic.volume = 0.3;
+                bgMusic.play();
+            } else {
+                bgMusic.pause();
+            }
+        }
+
+        musicToggle.addEventListener("change", playMusic);
+
+        document.addEventListener("keydown", e => {
+            if (e.key === "ArrowUp" && dy === 0) { dx = 0; dy = -20; }
+            else if (e.key === "ArrowDown" && dy === 0) { dx = 0; dy = 20; }
+            else if (e.key === "ArrowLeft" && dx === 0) { dx = -20; dy = 0; }
+            else if (e.key === "ArrowRight" && dx === 0) { dx = 20; dy = 0; }
+        });
+
+        startBtn.addEventListener("click", () => {
+            initGame();
+            gameInterval = setInterval(gameLoop, speed);
+            startBtn.style.display = "none";
+            restartBtn.style.display = "inline-block";
+        });
+
+        restartBtn.addEventListener("click", () => {
+            initGame();
+            restartInterval();
+        });
+    </script>
+</body>
+</html>
